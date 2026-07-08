@@ -1,5 +1,6 @@
 services:
   - type: web
     name: taxhub-pro
-    runtime: static
-    publishPath: .
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js

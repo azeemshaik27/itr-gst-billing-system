@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "TaxHub Pro - Realtime ITR, GST, and Compliant Billing System",
   "scripts": {
-    "dev": "npx -y serve -p 3000"
+    "dev": "npx -y serve -p 3000",
+    "start": "node server.js"
   }
 }
