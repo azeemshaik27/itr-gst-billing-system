@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity Tax Hub - Realtime ITR, GST, and Compliant Billing System</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- SIDEBAR NAVIGATION -->
+  <aside id="sidebar">
+    <div class="logo-container">
+      <div class="logo-icon"><i class="fa-solid fa-bolt"></i></div>
+      <div class="logo-text">TaxHub Pro</div>
+    </div>
+    
+    <!-- BUSINESS NAVIGATION LINKS -->
+    <ul class="nav-links" id="business-nav">
+      <li class="nav-item active" data-view="dashboard">
+        <a href="#dashboard"><i class="fa-solid fa-chart-pie"></i> Dashboard</a>
+      </li>
+      <li class="nav-item" data-view="billing">
+        <a href="#billing"><i class="fa-solid fa-file-invoice-dollar"></i> GST Billing & Invoice</a>
+      </li>
+      <li class="nav-item" data-view="purchases">
+        <a href="#purchases"><i class="fa-solid fa-receipt"></i> Purchase Ledger (ITC)</a>
+      </li>
+      <li class="nav-item" data-view="gst">
+        <a href="#gst"><i class="fa-solid fa-building-columns"></i> GST Filing Hub</a>
+      </li>
+      <li class="nav-item" data-view="itr">
+        <a href="#itr"><i class="fa-solid fa-calculator"></i> ITR Filing Engine</a>
+      </li>
+      <li class="nav-item" data-view="products">
+        <a href="#products"><i class="fa-solid fa-boxes-stacked"></i> Products Catalog</a>
+      </li>
+    </ul>
+
+    <!-- CUSTOMER NAVIGATION LINKS -->
+    <ul class="nav-links" id="customer-nav" style="display: none;">
+      <li class="nav-item" data-view="customer-dashboard">
+        <a href="#customer-dashboard"><i class="fa-solid fa-chart-pie"></i> Customer Dashboard</a>
+      </li>
+      <li class="nav-item" data-view="customer-invoices">
+        <a href="#customer-invoices"><i class="fa-solid fa-file-invoice-dollar"></i> My Invoices</a>
+      </li>
+    </ul>
+
+    <!-- USER PERSONA TOGGLER -->
+    <div class="profile-toggle-container" id="business-profile-container">
+      <span class="profile-label">Business Type</span>
+      <div class="profile-selector">
+        <button class="profile-btn active" id="btn-profile-retailer" onclick="switchProfile('retailer')">Retailer</button>
+        <button class="profile-btn" id="btn-profile-manufacturer" onclick="switchProfile('manufacturer')">Manufacturer</button>
+      </div>
+    </div>
+
+    <!-- CUSTOMER PROFILE INFO & LOGOUT -->
+    <div class="profile-toggle-container" id="customer-profile-container" style="display: none; margin-top: 20px;">
+      <span class="profile-label">Logged In As</span>
+      <div id="logged-in-customer-name" style="font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 6px 0 12px; letter-spacing: -0.5px; text-transform: uppercase;">-</div>
+      <button class="btn btn-sm btn-danger w-full" onclick="logoutCustomer()"><i class="fa-solid fa-right-from-bracket"></i> Logout Portal</button>
+    </div>
+
+    <!-- CUSTOMER PORTAL SWITCH BUTTON -->
+    <div class="customer-portal-btn-container" id="business-portal-toggle" style="margin-top: auto; border-top: 1px solid var(--border-light); padding-top: 20px;">
+      <button class="btn btn-sm w-full" id="btn-customer-portal-login" onclick="openCustomerLoginModal()"><i class="fa-solid fa-user-shield"></i> Customer Portal</button>
+    </div>
+  </aside>
+
+  <!-- MAIN VIEWPORT CONTENT -->
+  <main id="main-content">
+
+    <!-- 1. DASHBOARD VIEW -->
+    <section id="view-dashboard" class="app-view active">
+      <div class="view-title-container">
+        <div class="view-title-wrap">
+          <h1 id="dash-heading">Business Analytics Dashboard</h1>
+          <p id="dash-subheading">Real-time summaries of transactions, GST offsets, and presumptive profits.</p>
+        </div>
+        <div class="dash-period-badge">
+          <span class="badge badge-info">F.Y. 2026 - 27</span>
+        </div>
+      </div>
+
+      <!-- KPI METRICS ROW -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-title">Gross Outward Sales</span>
+            <div class="stat-icon purple"><i class="fa-solid fa-arrow-trend-up"></i></div>
+          </div>
+          <div class="stat-value" id="kpi-sales">₹0</div>
+          <div class="stat-sub"><span class="up"><i class="fa-solid fa-calendar-check"></i> Q1-Q2</span> cumulative sales</div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-title">Input Tax Credit (ITC)</span>
+            <div class="stat-icon teal"><i class="fa-solid fa-arrow-trend-down"></i></div>
+          </div>
+          <div class="stat-value" id="kpi-itc">₹0</div>
+          <div class="stat-sub">From purchase receipts ledger</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-title">Net GST Liability</span>
+            <div class="stat-icon warning"><i class="fa-solid fa-scale-balanced"></i></div>
+          </div>
+          <div class="stat-value" id="kpi-gst-liability">₹0</div>
+          <div class="stat-sub" id="kpi-gst-liability-desc">Pending offset & payout</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-title">Estimated Net Profit</span>
+            <div class="stat-icon success"><i class="fa-solid fa-wallet"></i></div>
+          </div>
+          <div class="stat-value" id="kpi-profit">₹0</div>
+          <div class="stat-sub" id="kpi-profit-type">Books of Accounts basis</div>
+        </div>
+      </div>
+
+      <!-- CHARTS AND FILINGS STATUS -->
+      <div class="dashboard-grid">
+        <div class="dashboard-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Sales vs Procurement Ledger</h2>
+          </div>
+          <div class="chart-container">
+            <canvas id="cashflowChart"></canvas>
+          </div>
+        </div>
+
+        <div class="dashboard-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Government Filing Status</h2>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Filing Type</th>
+                  <th>Period</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="dash-filings-tbody">
+                <!-- Injected via app.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECENT TRANSACTION LOGS -->
+      <div class="dashboard-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Recent Invoices Generated</h2>
+          <button class="btn btn-sm" onclick="triggerView('billing')"><i class="fa-solid fa-plus"></i> New Invoice</button>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Invoice ID</th>
+                <th>Date</th>
+                <th>Client Name</th>
+                <th>Taxable Value</th>
+                <th>GST Rate / Total</th>
+                <th>E-Invoice Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="dash-sales-tbody">
+              <!-- Injected via app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. BILLING VIEW -->
+    <section id="view-billing" class="app-view">
+      <div class="view-title-container">
+        <div class="view-title-wrap">
+          <h1>GST Compliant Billing & Invoicing</h1>
+          <p>Draft tax-compliant invoices and push instantly to the government e-invoice gateway.</p>
+        </div>
+      </div>
+
+      <div class="billing-split">
+        <!-- Billing creator form -->
+        <div class="dashboard-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Create Invoice</h2>
+          </div>
+
+          <!-- Customer details -->
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="inv-customer">Select Customer Profile</label>
+              <select id="inv-customer" onchange="loadCustomerInfo()">
+                <!-- Injected customer records -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="inv-date">Invoice Date</label>
+              <input type="date" id="inv-date" value="2026-07-01">
+            </div>
+          </div>
+
+          <div class="form-grid" style="grid-template-columns: 2fr 1fr;">
+            <div class="form-group">
+              <label for="inv-cust-gstin">GSTIN</label>
+              <input type="text" id="inv-cust-gstin" disabled>
+            </div>
+            <div class="form-group">
+              <label for="inv-cust-state">Place of Supply (State)</label>
+              <input type="text" id="inv-cust-state" disabled>
+            </div>
+          </div>
+
+          <!-- Items builder -->
+          <h3 style="margin: 20px 0 10px; font-family: var(--font-display); font-size: 15px; border-top: 1px solid var(--border-light); padding-top: 16px;">Add Invoice Line Items</h3>
+          
+          <div class="form-grid" style="grid-template-columns: 2fr 1fr 1fr;">
+            <div class="form-group">
+              <label for="inv-product-select">Select Product</label>
+              <select id="inv-product-select">
+                <!-- Injected products catalog -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="inv-qty">Quantity</label>
+              <input type="number" id="inv-qty" value="1" min="1">
+            </div>
+            <div class="form-group">
+              <label for="inv-disc">Discount %</label>
+              <input type="number" id="inv-disc" value="0" min="0" max="100">
+            </div>
+          </div>
+
+          <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+            <button class="btn btn-teal" onclick="addBillingLineItem()"><i class="fa-solid fa-plus"></i> Add Item</button>
+          </div>
+
+          <!-- Dynamic Billing Table -->
+          <h3 style="margin: 24px 0 12px; font-family: var(--font-display); font-size: 14px;">Line Items Added</h3>
+          
+          <div class="added-items-list" id="added-items-container">
+            <p style="color: var(--text-muted); font-size: 12px; text-align: center; padding: 12px;">No items added to invoice draft yet.</p>
+          </div>
+
+          <div style="margin-top: 30px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-light); padding-top: 20px;">
+            <button class="btn btn-danger" onclick="clearBillingForm()"><i class="fa-solid fa-trash-can"></i> Clear Invoice</button>
+            <div style="display: flex; gap: 12px;">
+              <button class="btn" id="btn-einvoice-register" onclick="registerEInvoiceDraft()" disabled><i class="fa-solid fa-cloud-arrow-up"></i> E-Invoice Registration</button>
+              <button class="btn btn-primary" onclick="submitBillingDraft()"><i class="fa-solid fa-save"></i> Save & Commit</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live invoice preview -->
+        <div class="invoice-preview-container" id="invoice-preview-section">
+          <!-- Dynamically Rendered print-ready receipt -->
+          <div class="invoice-print" id="invoice-receipt-render">
+            <div class="invoice-header">
+              <div class="invoice-header-left">
+                <h2 id="receipt-comp-name">Antigravity Tech</h2>
+                <p id="receipt-comp-gst">GSTIN: 27ANTIG1234F1Z9</p>
+                <p id="receipt-comp-addr">Vashi, Navi Mumbai, Maharashtra</p>
+              </div>
+              <div class="invoice-meta">
+                <h3>TAX INVOICE</h3>
+                <p><strong>Invoice ID:</strong> <span id="receipt-inv-id">INV-DRAFT</span></p>
+                <p><strong>Date:</strong> <span id="receipt-inv-date">2026-07-01</span></p>
+              </div>
+            </div>
+
+            <div class="invoice-parties">
+              <div>
+                <div class="party-title">Billed By</div>
+                <div class="party-name" id="receipt-by-name">Antigravity Tech & Industrial Solutions</div>
+                <p id="receipt-by-email">accounts@antigravity.io</p>
+              </div>
+              <div>
+                <div class="party-title">Billed To (Buyer)</div>
+                <div class="party-name" id="receipt-to-name">Select Customer</div>
+                <p id="receipt-to-gstin">GSTIN: -</p>
+                <p id="receipt-to-state">Place of Supply: -</p>
+              </div>
+            </div>
+
+            <table class="invoice-table">
+              <thead>
+                <tr>
+                  <th style="text-align: left;">Product Description</th>
+                  <th>Qty</th>
+                  <th>Rate (₹)</th>
+                  <th>Taxable (₹)</th>
+                  <th>GST %</th>
+                  <th style="text-align: right;">Total (₹)</th>
+                </tr>
+              </thead>
+              <tbody id="receipt-items-tbody">
+                <tr>
+                  <td colspan="6" style="text-align: center; color: #64748b; font-size: 12px; padding: 20px;">Add items to preview bill totals</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="invoice-totals">
+              <table class="invoice-totals-table">
+                <tr>
+                  <td>Taxable Subtotal:</td>
+                  <td style="text-align: right;" id="receipt-subtotal">₹0.00</td>
+                </tr>
+                <tr>
+                  <td id="receipt-tax-lbl">CGST + SGST:</td>
+                  <td style="text-align: right;" id="receipt-tax-value">₹0.00</td>
+                </tr>
+                <tr class="grand-total">
+                  <td>Grand Total:</td>
+                  <td style="text-align: right;" id="receipt-grand-total">₹0.00</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- E-invoice info -->
+            <div class="invoice-gov-panel" id="receipt-gov-panel" style="display: none;">
+              <div class="invoice-gov-qr" id="receipt-gov-qr">
+                <!-- SVG injected -->
+              </div>
+              <div class="invoice-gov-details">
+                <div style="font-weight: 700; color: #0f172a; margin-bottom: 2px;">GOVERNMENT TAX PORTAL: E-INVOICE ACKNOWLEDGED</div>
+                <div><strong>Ack No:</strong> <span id="receipt-ack-no">-</span></div>
+                <div><strong>Ack Date:</strong> <span id="receipt-ack-date">-</span></div>
+                <div><strong>IRN:</strong> <span class="invoice-gov-irn" id="receipt-irn-no">-</span></div>
+              </div>
+            </div>
+          </div>
+          
+          <div style="margin-top: 24px; display: flex; justify-content: flex-end;" class="btn-print-box">
+            <button class="btn btn-sm" onclick="window.print()"><i class="fa-solid fa-print"></i> Print Physical Invoice</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. PURCHASE LEDGER -->
+    <section id="view-purchases" class="app-view">
+      <div class="view-title-container">
+        <div class="view-title-wrap">
+          <h1>Purchase & Expense Ledger (ITC Reconciliation)</h1>
+          <p>Maintain direct material acquisitions, factory labor bills, and operating overheads to claim Input Tax Credit.</p>
+        </div>
+      </div>
+
+      <div class="dashboard-grid" style="grid-template-columns: 1fr 2fr;">
+        <!-- Add transaction form -->
+        <div class="dashboard-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Log Purchase Receipt</h2>
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="pur-vendor">Vendor Name</label>
+            <input type="text" id="pur-vendor" placeholder="e.g. Metro Metal Suppliers">
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="pur-gstin">Vendor GSTIN (or URP)</label>
+            <input type="text" id="pur-gstin" placeholder="e.g. 27VDD1234D1Z4">
+          </div>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="pur-date">Purchase Date</label>
+              <input type="date" id="pur-date" value="2026-07-01">
+            </div>
+            <div class="form-group">
+              <label for="pur-cat">Category</label>
+              <select id="pur-cat">
+                <option value="Raw Materials Procurement">Raw Materials</option>
+                <option value="Finished Goods Inventory">Finished Inventory</option>
+                <option value="Electronic Components">Electronic Parts</option>
+                <option value="Direct Labor Wages">Labor Wages</option>
+                <option value="Factory Power & Fuel">Power & Utility</option>
+                <option value="Machinery Maintenance & Consumables">Machinery Repair</option>
+                <option value="Office Rent & Overhead">Office Rent</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="pur-taxable">Taxable Amount (₹)</label>
+              <input type="number" id="pur-taxable" placeholder="50000" min="0" oninput="calculatePurchaseTax()">
+            </div>
+            <div class="form-group">
+              <label for="pur-gst-rate">GST Rate</label>
+              <select id="pur-gst-rate" onchange="calculatePurchaseTax()">
+                <option value="18">18%</option>
+                <option value="12">12%</option>
+                <option value="28">28%</option>
+                <option value="5">5%</option>
+                <option value="0">0% (RCM / Exempt)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid" style="margin-top: 10px; background-color: rgba(255,255,255,0.02); padding: 12px; border-radius: var(--radius-sm);">
+            <div>
+              <span style="font-size: 11px; color: var(--text-secondary); display:block;">Calculated GST:</span>
+              <strong style="font-size: 14px; color: var(--accent-teal);" id="pur-calc-gst">₹0.00</strong>
+            </div>
+            <div>
+              <span style="font-size: 11px; color: var(--text-secondary); display:block;">Total Voucher Value:</span>
+              <strong style="font-size: 14px; color: var(--text-primary);" id="pur-calc-total">₹0.00</strong>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin: 12px 0 20px;">
+            <label for="pur-desc">Voucher / Item Description</label>
+            <input type="text" id="pur-desc" placeholder="Details of procurement...">
+          </div>
+
+          <button class="btn btn-primary" style="width: 100%;" onclick="submitPurchaseVoucher()"><i class="fa-solid fa-file-invoice"></i> Log Voucher</button>
+        </div>
+
+        <!-- Purchase records database -->
+        <div class="dashboard-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Purchase Receipts Ledger</h2>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Voucher ID</th>
+                  <th>Date</th>
+                  <th>Vendor & Category</th>
+                  <th>Taxable Vol</th>
+                  <th>CGST / SGST / IGST</th>
+                  <th>Total Voucher</th>
+                </tr>
+              </thead>
+              <tbody id="purchase-ledger-tbody">
+                <!-- Injected via app.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. GST FILING HUB -->
+    <section id="view-gst" class="app-view">
+      <div class="view-title-container">
+        <div class="view-title-wrap">
+          <h1>GST Return Filing Center</h1>
+          <p>Compile GSTR-1, GSTR-3B summary reports, offset credits, and submit simulated governmental records.</p>
+        </div>
+      </div>
+
+      <!-- Filing status panel -->
+      <div class="dashboard-panel" style="margin-bottom: 24px;">
+        <div class="panel-header">
+          <h2 class="panel-title">Active GST Filing Period: Q1 (April - June 2026)</h2>
+          <span class="badge badge-warning"><i class="fa-solid fa-hourglass-half"></i> Action Required</span>
+        </div>
+        
+        <div class="form-grid" style="grid-template-columns: repeat(4, 1fr); margin-top: 16px;">
+          <div class="reconciliation-card-inner">
+            <div>
+              <div class="reconciliation-card-title">Outward Tax Liability</div>
+              <div class="reconciliation-card-value payable" id="gst-rec-liability">₹0.00</div>
+            </div>
+          </div>
+          <div class="reconciliation-card-inner">
+            <div>
+              <div class="reconciliation-card-title">Eligible Input Tax Credit</div>
+              <div class="reconciliation-card-value itc" id="gst-rec-itc">₹0.00</div>
+            </div>
+          </div>
+          <div class="reconciliation-card-inner">
+            <div>
+              <div class="reconciliation-card-title">Net GST Payable (Cash)</div>
+              <div class="reconciliation-card-value payable" id="gst-rec-payable">₹0.00</div>
+            </div>
+          </div>
+          <div class="reconciliation-card-inner">
+            <div>
+              <div class="reconciliation-card-title">ITC Carry Forward Bal</div>
+              <div class="reconciliation-card-value itc" id="gst-rec-carry">₹0.00</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FILING WIZARD PANEL -->
+      <div class="wizard-container">
+        <div class="wizard-steps">
+          <div class="wizard-step active" id="gst-step-tab-1" onclick="switchGstWizardStep(1)">1. Compile GSTR-1</div>
+          <div class="wizard-step" id="gst-step-tab-2" onclick="switchGstWizardStep(2)">2. Review GSTR-3B</div>
+          <div class="wizard-step" id="gst-step-tab-3" onclick="switchGstWizardStep(3)">3. Offset & File</div>
+        </div>
+
+        <div class="wizard-content">
+          <!-- Step 1: GSTR-1 Outward Supplies -->
+          <div class="wizard-panel active" id="gst-step-panel-1">
+            <h3 style="margin-bottom: 12px; font-family: var(--font-display);">Compile GSTR-1: Outward Supplies Log</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
+              GSTR-1 compiles all tax invoices raised to businesses (B2B) and retail consumers (B2C) during the selected period.
+            </p>
+            
+            <div class="dashboard-grid" style="grid-template-columns: 1fr 2fr;">
+              <div style="background-color: var(--bg-tertiary); padding: 20px; border-radius: var(--radius-md); border:1px solid var(--border-light);">
+                <h4 style="font-size: 14px; margin-bottom: 12px;">GSTR-1 Summary</h4>
+                <div style="display:flex; justify-content:space-between; margin-bottom: 10px; font-size: 13px;">
+                  <span>B2B Invoices:</span>
+                  <strong id="gst1-cnt-b2b">0</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom: 10px; font-size: 13px;">
+                  <span>B2C Invoices:</span>
+                  <strong id="gst1-cnt-b2c">0</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom: 10px; font-size: 13px;">
+                  <span>Taxable Amount:</span>
+                  <strong id="gst1-taxable">₹0</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size: 13px; border-top:1px dashed var(--border-light); padding-top:8px;">
+                  <span>Total GST Collected:</span>
+                  <strong id="gst1-tax" style="color: var(--accent-purple);">₹0</strong>
+                </div>
+              </div>
+
+              <div>
+                <h4 style="font-size: 14px; margin-bottom: 12px;">Compile Log Invoices Table</h4>
+                <div class="table-responsive" style="max-height: 180px;">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Inv ID</th>
+                        <th>Client</th>
+                        <th>Type</th>
+                        <th>Taxable (₹)</th>
+                        <th>Total Tax (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody id="gst-gstr1-tbody">
+                      <!-- Injected via app.js -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: GSTR-3B Summary Return -->
+          <div class="wizard-panel" id="gst-step-panel-2">
+            <h3 style="margin-bottom: 12px; font-family: var(--font-display);">Review GSTR-3B: Tax Summary Return</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
+              GSTR-3B is a monthly summary return outlining outward liabilities, credit ledger matching, and net payment.
+            </p>
+
+            <div class="dashboard-grid">
+              <!-- Outward Details -->
+              <div style="background-color: var(--bg-tertiary); padding: 20px; border-radius: var(--radius-md); border:1px solid var(--border-light);">
+                <h4 style="font-size: 13px; margin-bottom: 12px; color: var(--color-danger); text-transform: uppercase;">Table 3.1: Outward Supplies (Tax Collected)</h4>
+                <div class="reconciliation-card-inner" style="background-color: var(--bg-secondary);">
+                  <span>Taxable Value: <strong id="gst3b-out-taxable">₹0</strong></span>
+                  <span>CGST: <strong id="gst3b-out-cgst">₹0</strong></span>
+                  <span>SGST: <strong id="gst3b-out-sgst">₹0</strong></span>
+                  <span>IGST: <strong id="gst3b-out-igst">₹0</strong></span>
+                </div>
+              </div>
+
+              <!-- ITC Details -->
+              <div style="background-color: var(--bg-tertiary); padding: 20px; border-radius: var(--radius-md); border:1px solid var(--border-light);">
+                <h4 style="font-size: 13px; margin-bottom: 12px; color: var(--color-success); text-transform: uppercase;">Table 4: Eligible Input Tax Credit (ITC Paid)</h4>
+                <div class="reconciliation-card-inner" style="background-color: var(--bg-secondary);">
+                  <span>Taxable Value: <strong id="gst3b-in-taxable">₹0</strong></span>
+                  <span>CGST: <strong id="gst3b-in-cgst">₹0</strong></span>
+                  <span>SGST: <strong id="gst3b-in-sgst">₹0</strong></span>
+                  <span>IGST: <strong id="gst3b-in-igst">₹0</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Offset & File -->
+          <div class="wizard-panel" id="gst-step-panel-3">
+            <h3 style="margin-bottom: 12px; font-family: var(--font-display);">Authorized Signature & Returns Submission</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
+              Declare and verify Return GSTR-3B using OTP dispatch. Credit and Cash ledger accounts will offset automatically.
+            </p>
+
+            <div id="gst-filing-action-view">
+              <div style="max-width: 500px; margin: 0 auto; background-color: var(--bg-tertiary); padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--border-light);">
+                <h4 style="font-size: 14px; margin-bottom: 16px; text-align: center;">E-Verification Panel</h4>
+                <div style="display:flex; justify-content:space-between; margin-bottom: 8px; font-size: 13px;">
+                  <span>Outward GST Collected:</span>
+                  <span id="gst-file-out">₹0.00</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom: 8px; font-size: 13px;">
+                  <span>ITC Offsets Applied:</span>
+                  <span id="gst-file-itc" style="color: var(--color-success);">-₹0.00</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom: 16px; font-size: 14px; font-weight:700; border-top:1px dashed var(--border-light); padding-top:10px;">
+                  <span>Balance Net Cash Payable:</span>
+                  <span id="gst-file-cash" style="color: var(--color-danger);">₹0.00</span>
+                </div>
+
+                <div class="form-group" style="margin-top: 16px;">
+                  <label>Authorized Signatory Registered Email</label>
+                  <input type="text" id="gst-signatory-email" value="accounts@antigravity.io" placeholder="e.g. accounts@business.com">
+                </div>
+
+                <button class="btn btn-primary" style="width: 100%; margin-top: 16px;" onclick="triggerGstOTPDispatch()"><i class="fa-solid fa-envelope-open-text"></i> Dispatched Verification OTP</button>
+              </div>
+            </div>
+
+            <!-- Success screen -->
+            <div class="success-screen" id="gst-filing-success-view" style="display: none;">
+              <div class="success-icon"><i class="fa-solid fa-check"></i></div>
+              <h2 style="font-family: var(--font-display); margin-bottom: 8px;">GSTR returns submitted successfully!</h2>
+              <p style="color: var(--text-secondary); font-size: 13px;">Government portal transaction completed and credit ledgers updated.</p>
+              
+              <div class="receipt-box" id="gst-receipt-box">
+                <!-- Data filled -->
+              </div>
+
+              <button class="btn" onclick="resetGstWizard()"><i class="fa-solid fa-rotate-left"></i> Done & Reload</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="wizard-footer" id="gst-wizard-footer">
+          <button class="btn" id="btn-gst-wizard-prev" onclick="moveGstWizard(-1)" disabled><i class="fa-solid fa-arrow-left"></i> Previous</button>
+          <button class="btn btn-primary" id="btn-gst-wizard-next" onclick="moveGstWizard(1)">Next <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. ITR FILING HUB -->
+    <section id="view-itr" class="app-view">
+      <div class="view-title-container">
+        <div class="view-title-wrap">
+          <h1>ITR Income Tax Computation</h1>
+          <p>Compute business profits, deduct standard items, compare tax regimes and file ITR mock records.</p>
+        </div>
+      </div>
+
+      <div class="dashboard-grid">
+        <!-- Income calculation source -->
+        <div class="dashboard-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Net Taxable Profit Statement</h2>
+          </div>
+
+          <!-- Digital sales ratio details for Retailer -->
+          <div class="reconciliation-card-inner" style="margin-bottom: 20px;" id="itr-presumptive-card">
+            <div>
+              <div style="font-weight:600; font-size:13px; margin-bottom: 4px;">Section 44AD presumptive taxation (ITR-4)</div>
+              <div style="font-size:11px; color: var(--text-secondary);">Small Retailers can declare profit at 6% of digital turnover and 8% of cash turnover without audit logs.</div>
+            </div>
+            <div class="form-group">
+              <select id="itr-profit-method" onchange="loadItrProfitDetails()">
+                <option value="presumptive">Presumptive (Sec 44AD)</option>
+                <option value="standard">Books of Accounts (P&L)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="background-color: var(--bg-tertiary); padding: 20px; border-radius: var(--radius-md); border:1px solid var(--border-light); margin-bottom: 20px;">
+            <h3 style="font-size: 14px; margin-bottom: 12px; border-bottom: 1px solid var(--border-light); padding-bottom: 8px;">Business Profits Calculation</h3>
+            
+            <div class="regime-breakdown-row">
+              <span>Gross Business Turnover:</span>
+              <strong id="itr-calc-turnover">₹0</strong>
+            </div>
+            <div id="itr-breakdown-standard-rows">
+              <div class="regime-breakdown-row">
+                <span>Material Cost / Procurements:</span>
+                <span id="itr-calc-mats" style="color: var(--color-danger);">-₹0</span>
+              </div>
+              <div class="regime-breakdown-row">
+                <span>Wages & Manual Labor:</span>
+                <span id="itr-calc-labor" style="color: var(--color-danger);">-₹0</span>
+              </div>
+              <div class="regime-breakdown-row">
+                <span>Factory Overhead Charges:</span>
+                <span id="itr-calc-factory" style="color: var(--color-danger);">-₹0</span>
+              </div>
+              <div class="regime-breakdown-row">
+                <span>Operating/Office Overheads:</span>
+                <span id="itr-calc-office" style="color: var(--color-danger);">-₹0</span>
+              </div>
+            </div>
+            <div id="itr-breakdown-presumptive-rows">
+              <div class="regime-breakdown-row">
+                <span>Digital Turnover (Rate 6%):</span>
+                <span id="itr-calc-digital-to">₹0 (Profit: ₹0)</span>
+              </div>
+              <div class="regime-breakdown-row">
+                <span>Cash/Other Turnover (Rate 8%):</span>
+                <span id="itr-calc-cash-to">₹0 (Profit: ₹0)</span>
+              </div>
+            </div>
+            
+            <div class="regime-breakdown-row" style="font-weight:700; border-top:1px dashed var(--border-light); padding-top:10px; margin-top:10px; font-size:14px;">
+              <span>Net Declared Profit:</span>
+              <strong id="itr-calc-net-profit" style="color: var(--color-success);">₹0</strong>
+            </div>
+          </div>
+
+          <!-- Deductions builder for old regime -->
+          <div style="background-color: var(--bg-tertiary); padding: 20px; border-radius: var(--radius-md); border:1px solid var(--border-light);">
+            <h3 style="font-size: 14px; margin-bottom: 12px; border-bottom: 1px solid var(--border-light); padding-bottom: 8px;">Claim Tax Deductions (Applicable under Old Regime Only)</h3>
+            
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="ded-80c">Sec 80C (PPF, ELSS, LIC - Max 1.5L)</label>
+                <input type="number" id="ded-80c" value="150000" oninput="recomputeRegimeTaxes()">
+              </div>
+              <div class="form-group">
+                <label for="ded-80d">Sec 80D (Health Insurance - Max 25k)</label>
+                <input type="number" id="ded-80d" value="25000" oninput="recomputeRegimeTaxes()">
+              </div>
+            </div>
+            
+            <div class="form-grid" style="grid-template-columns: 1fr;">
+              <div class="form-group">
+                <label for="ded-24b">Sec 24b (Home Loan Interest Deduct - Max 2L)</label>
+                <input type="number" id="ded-24b" value="0" oninput="recomputeRegimeTaxes()">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Regime comparisons right side -->
+        <div>
+          <div class="dashboard-panel">
+            <div class="panel-header">
+              <h2 class="panel-title">Tax Regime Comparison: FY 2026-27</h2>
+            </div>
+
+            <div class="regime-comparison-grid">
+              <!-- Old Regime -->
+              <div class="regime-card" id="card-regime-old">
+                <span class="regime-badge" id="badge-old" style="display: none;">Cheaper</span>
+                <h3 style="font-size: 14px;">Old Tax Regime</h3>
+                <p style="color: var(--text-muted); font-size: 11px;">With deductions & standard exemptions</p>
+                <div class="regime-tax-value" id="tax-old">₹0.00</div>
+                
+                <div class="regime-breakdown-row">
+                  <span>Gross Profit:</span>
+                  <span id="tax-old-gross">₹0</span>
+                </div>
+                <div class="regime-breakdown-row">
+                  <span>Deductions:</span>
+                  <span id="tax-old-deduct" style="color: var(--color-success);">-₹0</span>
+                </div>
+                <div class="regime-breakdown-row">
+                  <span>Net Taxable:</span>
+                  <span id="tax-old-net">₹0</span>
+                </div>
+                <div class="regime-breakdown-row">
+                  <span>Tax Base (Slabs):</span>
+                  <span id="tax-old-base">₹0</span>
+                </div>
+                <div class="regime-breakdown-row">
+                  <span>Rebate Sec 87A:</span>
+                  <span id="tax-old-rebate">₹0</span>
+                </div>
+                <div class="regime-breakdown-row">
+                  <span>Cess (4%):</span>
+                  <span id="tax-old-cess">₹0</span>
+                </div>
+              </div>
+
+              <!-- New Regime -->
+              <div class="regime-card recommended" id="card-regime-new">
+                <span class="regime-badge" id="badge-new">Cheaper</span>
+                <h3 style="font-size: 14px;">New Tax Regime</h3>
+                <p style="color: var(--text-muted); font-size: 11px;">Default tax regime (Sec 115BAC)</p>
+                <div class="regime-tax-value" id="tax-new">₹0.00</div>
+
+                <div class="regime-breakdown-row">
+                  <span>Gross Profit:</span>
+                  <span id="tax-new-gross">₹0</span>
+                </div>
+                <div class="regime-breakdown-row">
+                  <span>Deductions:</span>
+                  <span style="color: var(--text-muted);">Not Allowed</span>
+                </div>
+                <div class="regime-breakdown-row">
+                  <span>Net Taxable:</span>
+                  <span id="tax-new-net">₹0</span>
+                </div>
+                <div class="regime-breakdown-row">
+                  <span>Tax Base (Slabs):</span>
+                  <span id="tax-new-base">₹0</span>
+                </div>
+                <div class="regime-breakdown-row">
+                  <span>Rebate Sec 87A:</span>
+                  <span id="tax-new-rebate">₹0</span>
+                </div>
+                <div class="regime-breakdown-row">
+                  <span>Cess (4%):</span>
+                  <span id="tax-new-cess">₹0</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Filing trigger -->
+            <div style="background-color: var(--bg-tertiary); padding: 20px; border-radius: var(--radius-md); border:1px solid var(--border-light); text-align: center;" id="itr-filing-wizard-form">
+              <h3 style="font-family: var(--font-display); font-size: 16px; margin-bottom: 8px;">Filing Status: Pending</h3>
+              <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">
+                You are about to file ITR return using the recommended regime: <strong id="itr-best-regime-label" style="color:var(--accent-purple);">New Regime</strong>.
+              </p>
+              
+              <div class="form-group" style="text-align: left; max-width: 300px; margin: 0 auto 16px;">
+                <label>Signatory Email</label>
+                <input type="text" id="itr-email" value="accounts@antigravity.io">
+              </div>
+
+              <button class="btn btn-primary" onclick="triggerItrOTPDispatch()"><i class="fa-solid fa-calculator"></i> Proceed to File ITR</button>
+            </div>
+
+            <!-- Success screen ITR -->
+            <div class="success-screen" id="itr-filing-success-view" style="display: none;">
+              <div class="success-icon"><i class="fa-solid fa-check"></i></div>
+              <h2 style="font-family: var(--font-display); margin-bottom: 8px;">Income Tax Return Filed!</h2>
+              <p style="color: var(--text-secondary); font-size: 13px;">Acknowledgement receipt received from NSDL / Income Tax Department.</p>
+              
+              <div class="receipt-box" id="itr-receipt-box">
+                <!-- Data filled -->
+              </div>
+
+              <button class="btn" onclick="resetItrView()"><i class="fa-solid fa-rotate-left"></i> Reset Form</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. PRODUCT CATALOG VIEW -->
+    <section id="view-products" class="app-view">
+      <div class="view-title-container">
+        <div class="view-title-wrap">
+          <h1>Product & Raw Materials Inventory Catalog</h1>
+          <p>Register finished products for sales invoices or raw materials with default HSN codes and GST rates.</p>
+        </div>
+      </div>
+
+      <div class="dashboard-grid" style="grid-template-columns: 1fr 2fr;">
+        <!-- Add Product Panel -->
+        <div class="dashboard-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Add / Edit Item</h2>
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="prod-id">Product Code (ID)</label>
+            <input type="text" id="prod-id" placeholder="e.g. P006">
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="prod-name">Item Name</label>
+            <input type="text" id="prod-name" placeholder="e.g. Steel Rod Grade-B">
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="prod-hsn">HSN / SAC Code</label>
+            <input type="text" id="prod-hsn" placeholder="e.g. 72159090">
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="prod-price">Unit Price (₹)</label>
+              <input type="number" id="prod-price" placeholder="4500" min="0">
+            </div>
+            <div class="form-group">
+              <label for="prod-gst">GST Rate (%)</label>
+              <select id="prod-gst">
+                <option value="18">18%</option>
+                <option value="12">12%</option>
+                <option value="28">28%</option>
+                <option value="5">5%</option>
+                <option value="0">0%</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" style="margin: 12px 0 20px;">
+            <label for="prod-stock">Initial Stock Level</label>
+            <input type="number" id="prod-stock" value="50" min="0">
+          </div>
+          
+          <button class="btn btn-primary" style="width: 100%;" onclick="submitProductToCatalog()"><i class="fa-solid fa-save"></i> Save Product</button>
+        </div>
+
+        <!-- Inventory Database list -->
+        <div class="dashboard-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Catalog Ledger</h2>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Product ID</th>
+                  <th>Description</th>
+                  <th>HSN Code</th>
+                  <th>Unit Rate (₹)</th>
+                  <th>GST Rate</th>
+                  <th>Current Stock</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="catalog-table-tbody">
+                <!-- Injected via app.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. CUSTOMER DASHBOARD VIEW -->
+    <section id="view-customer-dashboard" class="app-view">
+      <div class="view-title-container">
+        <div class="view-title-wrap">
+          <h1 id="customer-dash-heading">Client Portal Dashboard</h1>
+          <p id="customer-dash-subheading">View your registered purchases, accumulated tax receipts, and claimable input tax credit.</p>
+        </div>
+        <div class="dash-period-badge">
+          <span class="badge badge-info">F.Y. 2026 - 27</span>
+        </div>
+      </div>
+
+      <!-- KPI METRICS ROW -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-title">Total Purchase Value</span>
+            <div class="stat-icon purple"><i class="fa-solid fa-arrow-trend-up"></i></div>
+          </div>
+          <div class="stat-value" id="cust-kpi-purchases">₹0</div>
+          <div class="stat-sub">Before taxes & discount</div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-title">Total GST Paid</span>
+            <div class="stat-icon teal"><i class="fa-solid fa-arrow-trend-down"></i></div>
+          </div>
+          <div class="stat-value" id="cust-kpi-gst">₹0</div>
+          <div class="stat-sub">CGST + SGST + IGST paid</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-title">Gross Spend (Total)</span>
+            <div class="stat-icon success"><i class="fa-solid fa-wallet"></i></div>
+          </div>
+          <div class="stat-value" id="cust-kpi-total">₹0</div>
+          <div class="stat-sub">Invoice grand total inclusive of tax</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-title">Invoices Received</span>
+            <div class="stat-icon warning"><i class="fa-solid fa-receipt"></i></div>
+          </div>
+          <div class="stat-value" id="cust-kpi-invoice-count">0</div>
+          <div class="stat-sub">Invoices generated for you</div>
+        </div>
+      </div>
+
+      <!-- CHARTS AND PROFILE DETAILS -->
+      <div class="dashboard-grid">
+        <div class="dashboard-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Purchase Trends</h2>
+          </div>
+          <div class="chart-container">
+            <canvas id="customerPurchaseChart"></canvas>
+          </div>
+        </div>
+
+        <div class="dashboard-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Client Registration Information</h2>
+          </div>
+          <div style="padding: 20px 0;">
+            <div class="regime-breakdown-row">
+              <span style="font-weight: 600;">Business Name</span>
+              <span id="cust-info-name">-</span>
+            </div>
+            <div class="regime-breakdown-row">
+              <span style="font-weight: 600;">GSTIN</span>
+              <span id="cust-info-gstin" style="font-family: var(--font-mono); font-weight: 700;">-</span>
+            </div>
+            <div class="regime-breakdown-row">
+              <span style="font-weight: 600;">Place of Supply / State</span>
+              <span id="cust-info-state">-</span>
+            </div>
+            <div class="regime-breakdown-row">
+              <span style="font-weight: 600;">Billing Email</span>
+              <span id="cust-info-email">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. CUSTOMER INVOICES VIEW -->
+    <section id="view-customer-invoices" class="app-view">
+      <div class="view-title-container">
+        <div class="view-title-wrap">
+          <h1>Purchase Invoice Registry</h1>
+          <p>Retrieve, view, and print invoices issued to your business by the seller.</p>
+        </div>
+      </div>
+
+      <div class="dashboard-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Invoices Billed to You</h2>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Invoice ID</th>
+                <th>Date</th>
+                <th>Billed By</th>
+                <th>Taxable Value</th>
+                <th>GST Rate / Total</th>
+                <th>Grand Total</th>
+                <th>E-Invoice Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="cust-sales-tbody">
+              <!-- Injected via app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- OTP E-VERIFICATION MODAL POPUP -->
+  <div class="modal-overlay" id="otp-modal">
+    <div class="modal-card">
+      <div style="font-size: 38px; color: var(--accent-purple); margin-bottom: 12px;"><i class="fa-solid fa-shield-halved"></i></div>
+      <h2 style="font-family: var(--font-display); font-size: 20px; margin-bottom: 8px;">2-Factor OTP Verification</h2>
+      <p style="color: var(--text-secondary); font-size: 13px; line-height: 1.5;">
+        A verification code has been dispatched to your tax email address. Enter it below to authorize this filing transaction.
+      </p>
+      
+      <div class="otp-box">
+        <input type="text" class="otp-input" id="otp-1" maxlength="1" onkeyup="moveOtpInput(this, 'otp-2')" autofocus>
+        <input type="text" class="otp-input" id="otp-2" maxlength="1" onkeyup="moveOtpInput(this, 'otp-3')">
+        <input type="text" class="otp-input" id="otp-3" maxlength="1" onkeyup="moveOtpInput(this, 'otp-4')">
+        <input type="text" class="otp-input" id="otp-4" maxlength="1" onkeyup="moveOtpInput(this, 'otp-5')">
+        <input type="text" class="otp-input" id="otp-5" maxlength="1" onkeyup="moveOtpInput(this, 'otp-6')">
+        <input type="text" class="otp-input" id="otp-6" maxlength="1" onkeyup="moveOtpInput(this, null)">
+      </div>
+
+      <div style="font-size: 11px; color: var(--accent-teal); margin-bottom: 24px;">
+        (Hint: Check console log or use bypass code: <strong>123456</strong>)
+      </div>
+
+      <div style="display:flex; gap:12px;">
+        <button class="btn" style="flex:1;" onclick="closeOtpModal()">Cancel</button>
+        <button class="btn btn-primary" style="flex:1;" id="btn-modal-verify" onclick="confirmOtpSubmission()">Verify & Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOMER PORTAL LOGIN MODAL -->
+  <div class="modal-overlay" id="customer-login-modal">
+    <div class="modal-card" style="text-align: left; max-width: 440px;">
+      <h2 style="font-family: var(--font-display); font-size: 24px; margin-bottom: 8px; text-transform: uppercase;">Customer Portal</h2>
+      <p style="color: var(--text-secondary); font-size: 11px; margin-bottom: 24px; letter-spacing: 0.05em; text-transform: uppercase;">Select profile to access your business purchase invoices & tax history</p>
+      
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label for="cust-login-select">Customer Profile</label>
+        <select id="cust-login-select" style="width: 100%; padding: 12px; border: 1px solid var(--border-light); background: #fff; font-family: var(--font-body); font-size: 13px;">
+          <!-- Dynamically populated -->
+        </select>
+      </div>
+
+      <div style="display:flex; gap:12px; margin-top: 30px;">
+        <button class="btn" style="flex:1;" onclick="closeCustomerLoginModal()">Cancel</button>
+        <button class="btn btn-primary" style="flex:1;" onclick="submitCustomerLogin()">Access Portal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOMER INVOICE VIEW MODAL -->
+  <div class="modal-overlay" id="customer-invoice-modal">
+    <div class="modal-card" style="max-width: 800px; width: 90%; text-align: left; padding: 30px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 15px; margin-bottom: 20px;">
+        <h2 style="font-family: var(--font-display); font-size: 20px; margin: 0;">TAX INVOICE</h2>
+        <button class="btn btn-sm" onclick="closeCustomerInvoiceModal()"><i class="fa-solid fa-xmark"></i> Close</button>
+      </div>
+      
+      <div id="customer-invoice-receipt-render" style="max-height: 60vh; overflow-y: auto; border: 1px solid var(--border-subtle); padding: 20px;">
+        <!-- Injected invoice HTML -->
+      </div>
+      
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;" class="btn-print-box">
+        <button class="btn btn-primary" onclick="printCustomerInvoice()"><i class="fa-solid fa-print"></i> Print Invoice</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Source files linkage -->
+  <script src="database.js"></script>
+  <script src="billing.js"></script>
+  <script src="gst.js"></script>
+  <script src="itr.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

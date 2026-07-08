@@ -1,0 +1,8 @@
+{
+  "name": "taxhub-pro",
+  "version": "1.0.0",
+  "description": "TaxHub Pro - Realtime ITR, GST, and Compliant Billing System",
+  "scripts": {
+    "dev": "npx -y serve -p 3000"
+  }
+}
