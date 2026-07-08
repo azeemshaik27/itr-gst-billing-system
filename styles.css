@@ -1018,3 +1018,393 @@ tr:hover td {
     grid-template-columns: 1fr;
   }
 }
+
+/* --- AUTH GATEWAY PORTAL --- */
+#auth-gateway {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #0a0a0a;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: var(--font-body);
+  color: #ffffff;
+  overflow: hidden;
+  transition: opacity 0.5s ease;
+}
+
+#auth-gateway.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.auth-mesh-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 10% 20%, rgba(30, 20, 50, 0.6) 0%, transparent 40%),
+              radial-gradient(circle at 90% 80%, rgba(20, 40, 45, 0.6) 0%, transparent 40%);
+  background-color: #0a0a0a;
+  opacity: 0.8;
+  z-index: 1;
+}
+
+.auth-container {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 460px;
+  background-color: #121212;
+  border: 1px solid #222222;
+  padding: 48px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.auth-logo-icon {
+  font-size: 32px;
+  color: #ffffff;
+  margin-bottom: 12px;
+}
+
+.auth-logo-text {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+
+.auth-subtitle {
+  font-size: 11px;
+  color: #888888;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 6px;
+}
+
+/* Tabs */
+.auth-tabs {
+  display: flex;
+  border-bottom: 1px solid #222222;
+  margin-bottom: 30px;
+}
+
+.auth-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #666666;
+  padding: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  text-align: center;
+  transition: var(--transition-smooth);
+  border-bottom: 2px solid transparent;
+}
+
+.auth-tab.active {
+  color: #ffffff;
+  border-bottom-color: #ffffff;
+}
+
+.auth-form-step {
+  display: none;
+}
+
+.auth-form-step.active {
+  display: block;
+  animation: fadeIn 0.3s ease;
+}
+
+/* Input Styles for Auth Gateway */
+.auth-input-group {
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.auth-input-label {
+  display: block;
+  font-size: 9px;
+  font-weight: 700;
+  color: #888888;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 8px;
+}
+
+.auth-phone-wrapper {
+  display: flex;
+  border-bottom: 1px solid #333333;
+}
+
+.auth-phone-prefix {
+  padding: 12px 10px 12px 0;
+  font-size: 14px;
+  color: #888888;
+}
+
+.auth-input-field {
+  flex-grow: 1;
+  background-color: transparent !important;
+  border: none !important;
+  color: #ffffff !important;
+  padding: 12px 0 !important;
+  font-size: 14px !important;
+  font-family: var(--font-body);
+}
+
+.auth-input-field:focus {
+  outline: none !important;
+}
+
+.auth-phone-wrapper:focus-within {
+  border-bottom-color: #ffffff;
+}
+
+/* Custom OTP Blocks */
+.auth-otp-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 30px 0 20px;
+}
+
+.auth-otp-digit {
+  width: 48px;
+  height: 52px;
+  background-color: #1a1a1a;
+  border: 1px solid #333333;
+  color: #ffffff;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 600;
+  transition: var(--transition-smooth);
+}
+
+.auth-otp-digit:focus {
+  outline: none;
+  border-color: #ffffff;
+  background-color: #222222;
+}
+
+.auth-recaptcha-wrap {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.auth-status-message {
+  font-size: 12px;
+  margin-bottom: 20px;
+  padding: 12px;
+  border: 1px solid transparent;
+  display: none;
+}
+
+.auth-status-message.success {
+  display: block;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: #ffffff;
+  color: #ffffff;
+}
+
+.auth-status-message.error {
+  display: block;
+  background-color: rgba(255, 0, 0, 0.05);
+  border-color: #ff3b30;
+  color: #ff3b30;
+}
+
+.auth-btn {
+  width: 100%;
+  background-color: #ffffff;
+  color: #000000;
+  border: 1px solid #ffffff;
+  padding: 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.auth-btn:hover {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+.auth-btn:disabled {
+  background-color: #333333;
+  color: #666666;
+  border-color: #333333;
+  cursor: not-allowed;
+}
+
+.auth-timer-container {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #888888;
+  margin-top: 16px;
+}
+
+.auth-resend-link {
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-resend-link.disabled {
+  color: #444444;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Shake Animation */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+.shake-effect {
+  animation: shake 0.25s ease-in-out;
+  animation-iteration-count: 2;
+}
+
+/* --- SMS SIMULATOR SYSTEM --- */
+#sms-simulator {
+  position: fixed;
+  top: -160px;
+  right: 24px;
+  width: 340px;
+  background-color: #1c1c1e;
+  border: 1px solid #2c2c2e;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #ffffff;
+  padding: 16px;
+  transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#sms-simulator.active {
+  top: 24px;
+}
+
+.sms-sim-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: #8e8e93;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.sms-sim-header i {
+  color: #30d158;
+}
+
+.sms-sim-body {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #e5e5ea;
+  margin-bottom: 12px;
+}
+
+.sms-sim-otp {
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: 700;
+  background-color: #2c2c2e;
+  padding: 2px 8px;
+  border: 1px dashed #48484a;
+  color: #30d158;
+}
+
+.sms-sim-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.sms-sim-btn {
+  background: transparent;
+  border: none;
+  color: #0a84ff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* --- SECURITY AUDIT & SETTINGS --- */
+.security-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 40px;
+  margin-top: 24px;
+}
+
+@media (min-width: 1024px) {
+  .security-grid {
+    grid-template-columns: 1.2fr 1fr;
+  }
+}
+
+.security-card {
+  border: 1px solid var(--border-light);
+  padding: 30px;
+  background-color: var(--bg-card);
+}
+
+.security-card-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 12px;
+  text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sec-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background-color: var(--border-light);
+  color: var(--bg-primary);
+}
+
+.sec-status-pill.live {
+  background-color: #30d158;
+  color: #ffffff;
+}
+
+.sec-status-pill.demo {
+  background-color: #8e8e93;
+  color: #ffffff;
+}

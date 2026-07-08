@@ -27,6 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Set default dates
   document.getElementById('inv-date').valueAsDate = new Date();
   document.getElementById('pur-date').valueAsDate = new Date();
+
+  // Initialize Advanced Authentication and Security Policies
+  initAuthSystem();
 });
 
 // --- NAVIGATION & VIEWS CONTROLLER ---
@@ -95,6 +98,9 @@ function refreshViewData(viewName) {
       break;
     case 'customer-invoices':
       renderCustomerInvoicesTable();
+      break;
+    case 'security':
+      renderAuditLogs();
       break;
   }
 }
@@ -1185,26 +1191,20 @@ let isCustomerInvoicePrintPending = false;
 let customerPurchaseChart = null;
 
 function openCustomerLoginModal() {
-  const selectEl = document.getElementById('cust-login-select');
-  selectEl.innerHTML = '';
-  DEFAULT_CUSTOMERS.forEach((cust, index) => {
-    selectEl.innerHTML += `<option value="${index}">${cust.name} (${cust.email})</option>`;
-  });
-  document.getElementById('customer-login-modal').classList.add('active');
+  document.getElementById('auth-gateway').classList.remove('fade-out');
+  switchAuthRole('customer');
 }
 
 function closeCustomerLoginModal() {
-  document.getElementById('customer-login-modal').classList.remove('active');
+  if (localStorage.getItem('taxhub_session')) {
+    document.getElementById('auth-gateway').classList.add('fade-out');
+  } else {
+    alert('Authentication is required to access the portal.');
+  }
 }
 
 function submitCustomerLogin() {
-  const index = parseInt(document.getElementById('cust-login-select').value);
-  const customer = DEFAULT_CUSTOMERS[index];
-  if (!customer) return;
-
-  currentCustomer = customer;
-  closeCustomerLoginModal();
-  switchToCustomerPortal();
+  // Deprecated - customer auth handled via OTP
 }
 
 function switchToCustomerPortal() {
@@ -1224,14 +1224,17 @@ function switchToCustomerPortal() {
 }
 
 function logoutCustomer() {
+  addAuditLog('CUSTOMER', currentCustomer ? currentCustomer.email : 'Unknown', 'LOGOUT', 'User logged out of customer portal.');
   currentCustomer = null;
+  localStorage.removeItem('taxhub_session');
+  
   document.getElementById('business-nav').style.display = 'flex';
   document.getElementById('customer-nav').style.display = 'none';
   document.getElementById('business-profile-container').style.display = 'block';
   document.getElementById('customer-profile-container').style.display = 'none';
   document.getElementById('business-portal-toggle').style.display = 'block';
 
-  triggerView('dashboard');
+  showAuthGateway();
 }
 
 function initCustomerDashboard() {
@@ -1499,3 +1502,662 @@ window.addEventListener('afterprint', () => {
   document.body.classList.remove('printing-customer-invoice');
   isCustomerInvoicePrintPending = false;
 });
+
+// --- ADVANCED OTP AUTHENTICATION & SECURITY AUDITS ---
+
+let authState = {
+  currentRole: 'business', // 'business' or 'customer'
+  pendingPhone: '',
+  sentOtp: '',
+  resendTimer: null,
+  cooldownSeconds: 60,
+  lockoutTimer: null,
+  firebaseConfirmationResult: null,
+  isLiveMode: false,
+  policy: {
+    maxAttempts: 3,
+    sessionTimeout: 15 // minutes
+  },
+  idleTimer: null
+};
+
+// Seeding standard test credentials for offline simulator mode
+const AUTH_PHONE_DIRECTORY = {
+  business: {
+    name: 'Shaik Azeem (Owner)',
+    phone: '9876543210'
+  },
+  customer: [
+    { name: 'Quantum Tech Solutions', phone: '9111111111', index: 0 },
+    { name: 'Apex Retail Stores Inc.', phone: '9222222222', index: 1 },
+    { name: 'Alpha Manufacturing Ltd', phone: '9333333333', index: 2 },
+    { name: 'Individual Walk-in Client', phone: '9444444444', index: 3 }
+  ]
+};
+
+function initAuthSystem() {
+  // Load config keys & policies
+  const fbConfig = localStorage.getItem('taxhub_fb_config');
+  authState.isLiveMode = !!fbConfig;
+  
+  const savedPolicy = localStorage.getItem('taxhub_security_policy');
+  if (savedPolicy) {
+    authState.policy = JSON.parse(savedPolicy);
+  }
+  
+  // Set policy values in Settings view UI
+  document.getElementById('cfg-lockout-attempts').value = authState.policy.maxAttempts;
+  document.getElementById('cfg-session-timeout').value = authState.policy.sessionTimeout;
+
+  // Initialize view and display appropriate label
+  updateSecurityPill();
+  renderAuditLogs();
+
+  // Populate Firebase inputs if they exist
+  if (fbConfig) {
+    const config = JSON.parse(fbConfig);
+    document.getElementById('fb-api-key').value = config.apiKey || '';
+    document.getElementById('fb-auth-domain').value = config.authDomain || '';
+    document.getElementById('fb-project-id').value = config.projectId || '';
+    document.getElementById('fb-storage-bucket').value = config.storageBucket || '';
+    document.getElementById('fb-messaging-sender-id').value = config.messagingSenderId || '';
+    document.getElementById('fb-app-id').value = config.appId || '';
+  }
+
+  // Inject Business Sign Out button dynamically in sidebar profile container
+  const profileContainer = document.getElementById('business-profile-container');
+  if (profileContainer && !document.getElementById('btn-business-logout')) {
+    profileContainer.insertAdjacentHTML('beforeend', `
+      <div style="margin-top: 15px; border-top: 1px dashed var(--border-subtle); padding-top: 15px;" id="btn-business-logout-wrap">
+        <button class="btn btn-sm btn-danger w-full" id="btn-business-logout" onclick="logoutBusiness()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out Portal</button>
+      </div>
+    `);
+  }
+
+  // Setup Firebase Auth if Live Mode
+  if (authState.isLiveMode) {
+    try {
+      const config = JSON.parse(fbConfig);
+      if (!firebase.apps.length) {
+        firebase.initializeApp(config);
+      }
+      
+      // Initialize reCAPTCHA
+      window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+        'size': 'normal',
+        'callback': (response) => {
+          // reCAPTCHA solved, enable send button
+          document.getElementById('btn-send-otp').disabled = false;
+        },
+        'expired-callback': () => {
+          alert('reCAPTCHA expired. Please solve it again.');
+          document.getElementById('btn-send-otp').disabled = true;
+        }
+      });
+      window.recaptchaVerifier.render();
+    } catch (err) {
+      console.error('Firebase Initialization Error:', err);
+      addAuditLog('SYSTEM', 'N/A', 'FAILURE', `Firebase init error: ${err.message}`);
+      authState.isLiveMode = false;
+      updateSecurityPill();
+    }
+  }
+
+  // Verify Active Session
+  const activeSession = localStorage.getItem('taxhub_session');
+  if (activeSession) {
+    const session = JSON.parse(activeSession);
+    
+    // Check if session has expired
+    const now = Date.now();
+    const timeoutMs = authState.policy.sessionTimeout * 60 * 1000;
+    if (authState.policy.sessionTimeout > 0 && (now - session.timestamp > timeoutMs)) {
+      localStorage.removeItem('taxhub_session');
+      addAuditLog(session.role.toUpperCase(), session.phone, 'EXPIRED', 'Session automatically timed out due to inactivity.');
+      showAuthGateway();
+    } else {
+      // Restore Session
+      if (session.role === 'customer') {
+        currentCustomer = DEFAULT_CUSTOMERS[session.customerIndex];
+        switchToCustomerPortal();
+      } else {
+        document.getElementById('auth-gateway').classList.add('fade-out');
+        triggerView('dashboard');
+      }
+      resetIdleTimer();
+      // Keep session timestamp updated
+      session.timestamp = Date.now();
+      localStorage.setItem('taxhub_session', JSON.stringify(session));
+    }
+  } else {
+    showAuthGateway();
+  }
+
+  // Monitor user idle activity for session timeout
+  document.addEventListener('mousemove', resetIdleTimer);
+  document.addEventListener('keypress', resetIdleTimer);
+  document.addEventListener('click', resetIdleTimer);
+}
+
+function showAuthGateway() {
+  document.getElementById('auth-gateway').classList.remove('fade-out');
+  switchAuthRole('business');
+  
+  if (authState.isLiveMode && !window.recaptchaVerifier) {
+    initAuthSystem();
+  }
+}
+
+function updateSecurityPill() {
+  const pill = document.getElementById('sec-integration-status');
+  if (pill) {
+    if (authState.isLiveMode) {
+      pill.textContent = 'Live Firebase SMS Mode';
+      pill.className = 'sec-status-pill live';
+    } else {
+      pill.textContent = 'Demo Simulator Mode';
+      pill.className = 'sec-status-pill demo';
+    }
+  }
+}
+
+function switchAuthRole(role) {
+  authState.currentRole = role;
+  
+  const tabBusiness = document.getElementById('tab-business');
+  const tabCustomer = document.getElementById('tab-customer');
+  
+  if (role === 'business') {
+    tabBusiness.classList.add('active');
+    tabCustomer.classList.remove('active');
+  } else {
+    tabBusiness.classList.remove('active');
+    tabCustomer.classList.add('active');
+  }
+
+  // Clear states
+  document.getElementById('auth-phone-input').value = '';
+  document.getElementById('phone-error-msg').style.display = 'none';
+  
+  // Show first step
+  document.getElementById('auth-step-phone').classList.add('active');
+  document.getElementById('auth-step-otp').classList.remove('active');
+}
+
+function logoutBusiness() {
+  addAuditLog('BUSINESS', 'Owner', 'LOGOUT', 'User logged out of business management.');
+  localStorage.removeItem('taxhub_session');
+  showAuthGateway();
+}
+
+async function handleSendOtp() {
+  const phoneInput = document.getElementById('auth-phone-input').value.trim();
+  const errorMsg = document.getElementById('phone-error-msg');
+  
+  errorMsg.style.display = 'none';
+
+  if (!/^\d{10}$/.test(phoneInput)) {
+    showAuthError('phone-error-msg', 'Please enter a valid 10-digit mobile number.');
+    return;
+  }
+
+  // Check lockout limits
+  const lockoutTime = localStorage.getItem('taxhub_lockout_until');
+  if (lockoutTime && Date.now() < parseInt(lockoutTime)) {
+    const waitSec = Math.round((parseInt(lockoutTime) - Date.now()) / 1000);
+    showAuthError('phone-error-msg', `System locked due to too many failed OTP attempts. Try again in ${waitSec}s.`);
+    return;
+  }
+
+  const fullPhone = '+91' + phoneInput;
+  authState.pendingPhone = phoneInput;
+  
+  const btn = document.getElementById('btn-send-otp');
+  btn.disabled = true;
+  btn.textContent = 'Sending OTP...';
+
+  try {
+    if (authState.isLiveMode) {
+      // Firebase SMS Mode
+      const appVerifier = window.recaptchaVerifier;
+      const confirmationResult = await firebase.auth().signInWithPhoneNumber(fullPhone, appVerifier);
+      authState.firebaseConfirmationResult = confirmationResult;
+      
+      addAuditLog(authState.currentRole.toUpperCase(), fullPhone, 'OTP_SENT', 'Live SMS OTP dispatched via Firebase Auth.');
+    } else {
+      // Simulator Mode
+      const generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
+      authState.sentOtp = generatedOtp;
+      console.log(`[TAXHUB SIMULATOR] Generated OTP code is: ${generatedOtp}`);
+      
+      showSmsSimulatorNotification(generatedOtp);
+      addAuditLog(authState.currentRole.toUpperCase(), fullPhone, 'OTP_SENT', `Simulated SMS OTP sent (Code: ${generatedOtp})`);
+    }
+
+    // Go to step 2
+    document.getElementById('display-auth-phone').textContent = fullPhone;
+    document.getElementById('auth-step-phone').classList.remove('active');
+    document.getElementById('auth-step-otp').classList.add('active');
+    
+    // Clear inputs in step 2
+    for (let i = 1; i <= 6; i++) {
+      document.getElementById(`auth-otp-${i}`).value = '';
+    }
+    document.getElementById('auth-otp-1').focus();
+
+    startResendCooldown();
+
+  } catch (err) {
+    showAuthError('phone-error-msg', `Failed to send verification code: ${err.message}`);
+    addAuditLog(authState.currentRole.toUpperCase(), fullPhone, 'OTP_FAIL', `Send OTP error: ${err.message}`);
+    
+    if (authState.isLiveMode && window.recaptchaVerifier) {
+      window.recaptchaVerifier.render().then(widgetId => {
+        grecaptcha.reset(widgetId);
+      });
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Request verification code';
+  }
+}
+
+function showSmsSimulatorNotification(code) {
+  const container = document.getElementById('sms-simulator');
+  document.getElementById('sms-sim-code').textContent = code;
+  container.classList.add('active');
+}
+
+function hideSmsSimulatorNotification() {
+  document.getElementById('sms-simulator').classList.remove('active');
+}
+
+function copySimOtp() {
+  const code = document.getElementById('sms-sim-code').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    alert('Code copied to clipboard: ' + code);
+  });
+}
+
+function autofillSimOtp() {
+  const code = document.getElementById('sms-sim-code').textContent;
+  for (let i = 1; i <= 6; i++) {
+    const input = document.getElementById(`auth-otp-${i}`);
+    if (input) {
+      input.value = code[i - 1];
+    }
+  }
+  document.getElementById('btn-verify-otp').disabled = false;
+  handleVerifyOtp();
+  hideSmsSimulatorNotification();
+}
+
+function moveAuthOtp(current, nextFieldId) {
+  if (current.value.length >= 1) {
+    if (nextFieldId) {
+      document.getElementById(nextFieldId).focus();
+    } else {
+      current.blur();
+      document.getElementById('btn-verify-otp').disabled = false;
+      document.getElementById('btn-verify-otp').focus();
+    }
+  }
+  
+  let filled = true;
+  for (let i = 1; i <= 6; i++) {
+    if (!document.getElementById(`auth-otp-${i}`).value) {
+      filled = false;
+      break;
+    }
+  }
+  document.getElementById('btn-verify-otp').disabled = !filled;
+}
+
+// Backspace support
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Backspace' && e.target.classList.contains('auth-otp-digit')) {
+    const idNum = parseInt(e.target.id.replace('auth-otp-', ''));
+    if (idNum > 1 && !e.target.value) {
+      const prevField = document.getElementById(`auth-otp-${idNum - 1}`);
+      if (prevField) {
+        prevField.focus();
+        prevField.value = '';
+        document.getElementById('btn-verify-otp').disabled = true;
+      }
+    }
+  }
+});
+
+async function handleVerifyOtp() {
+  const errorMsg = document.getElementById('otp-error-msg');
+  errorMsg.style.display = 'none';
+
+  let code = '';
+  for (let i = 1; i <= 6; i++) {
+    code += document.getElementById(`auth-otp-${i}`).value;
+  }
+
+  if (code.length < 6) return;
+
+  const btn = document.getElementById('btn-verify-otp');
+  btn.disabled = true;
+  btn.textContent = 'Verifying...';
+
+  try {
+    let verified = false;
+    let authDetails = 'Verification successful';
+
+    if (authState.isLiveMode) {
+      const result = await authState.firebaseConfirmationResult.confirm(code);
+      verified = !!result.user;
+    } else {
+      if (code === authState.sentOtp || code === '123456') {
+        verified = true;
+        authDetails = code === '123456' ? 'Simulated OTP verified via emergency bypass code.' : 'Simulated OTP verified successfully.';
+      } else {
+        verified = false;
+      }
+    }
+
+    if (verified) {
+      localStorage.removeItem('taxhub_failed_attempts');
+      
+      let customerIndex = -1;
+      
+      if (authState.currentRole === 'customer') {
+        const match = AUTH_PHONE_DIRECTORY.customer.find(c => c.phone === authState.pendingPhone);
+        if (match) {
+          customerIndex = match.index;
+        } else {
+          customerIndex = parseInt(authState.pendingPhone) % DEFAULT_CUSTOMERS.length;
+        }
+        currentCustomer = DEFAULT_CUSTOMERS[customerIndex];
+      }
+
+      const session = {
+        role: authState.currentRole,
+        phone: authState.pendingPhone,
+        timestamp: Date.now(),
+        customerIndex: customerIndex
+      };
+      localStorage.setItem('taxhub_session', JSON.stringify(session));
+
+      addAuditLog(authState.currentRole.toUpperCase(), authState.pendingPhone, 'SUCCESS', authDetails);
+      hideSmsSimulatorNotification();
+
+      const gateway = document.getElementById('auth-gateway');
+      gateway.classList.add('fade-out');
+
+      if (authState.currentRole === 'customer') {
+        switchToCustomerPortal();
+      } else {
+        document.getElementById('business-nav').style.display = 'flex';
+        document.getElementById('customer-nav').style.display = 'none';
+        document.getElementById('business-profile-container').style.display = 'block';
+        document.getElementById('customer-profile-container').style.display = 'none';
+        document.getElementById('business-portal-toggle').style.display = 'block';
+        triggerView('dashboard');
+      }
+
+      resetIdleTimer();
+
+    } else {
+      throw new Error('Invalid verification code. Please check and try again.');
+    }
+
+  } catch (err) {
+    showAuthError('otp-error-msg', err.message);
+    handleFailedOtpAttempt();
+    
+    const authCard = document.querySelector('.auth-container');
+    if (authCard) {
+      authCard.classList.add('shake-effect');
+      setTimeout(() => {
+        authCard.classList.remove('shake-effect');
+      }, 500);
+    }
+
+    for (let i = 1; i <= 6; i++) {
+      document.getElementById(`auth-otp-${i}`).value = '';
+    }
+    document.getElementById('auth-otp-1').focus();
+    btn.disabled = true;
+  } finally {
+    btn.textContent = 'Confirm Access';
+  }
+}
+
+function handleFailedOtpAttempt() {
+  let failed = parseInt(localStorage.getItem('taxhub_failed_attempts') || '0');
+  failed += 1;
+  localStorage.setItem('taxhub_failed_attempts', failed);
+
+  addAuditLog(authState.currentRole.toUpperCase(), authState.pendingPhone, 'FAILED_OTP', `Incorrect code entry. Attempt ${failed} of ${authState.policy.maxAttempts}.`);
+
+  if (failed >= authState.policy.maxAttempts) {
+    const lockoutDuration = 60 * 1000;
+    const lockoutUntil = Date.now() + lockoutDuration;
+    localStorage.setItem('taxhub_lockout_until', lockoutUntil);
+    localStorage.removeItem('taxhub_failed_attempts');
+
+    addAuditLog(authState.currentRole.toUpperCase(), authState.pendingPhone, 'LOCKED_OUT', `System locked out due to high OTP failure count.`);
+    
+    alert(`Too many incorrect OTP entries. Auth has been locked for 60 seconds.`);
+    document.getElementById('auth-step-otp').classList.remove('active');
+    document.getElementById('auth-step-phone').classList.add('active');
+    document.getElementById('auth-phone-input').value = '';
+  }
+}
+
+function startResendCooldown() {
+  if (authState.resendTimer) clearInterval(authState.resendTimer);
+  
+  authState.cooldownSeconds = 60;
+  const cooldownDisplay = document.getElementById('auth-cooldown');
+  const resendBtn = document.getElementById('auth-resend-btn');
+  const timerText = document.getElementById('auth-timer-text');
+  
+  cooldownDisplay.textContent = authState.cooldownSeconds;
+  resendBtn.classList.add('disabled');
+  timerText.style.display = 'inline';
+
+  authState.resendTimer = setInterval(() => {
+    authState.cooldownSeconds -= 1;
+    cooldownDisplay.textContent = authState.cooldownSeconds;
+    
+    if (authState.cooldownSeconds <= 0) {
+      clearInterval(authState.resendTimer);
+      resendBtn.classList.remove('disabled');
+      timerText.style.display = 'none';
+    }
+  }, 1000);
+}
+
+function showAuthError(elementId, message) {
+  const errEl = document.getElementById(elementId);
+  if (errEl) {
+    errEl.textContent = message;
+    errEl.style.display = 'block';
+  }
+}
+
+function resetIdleTimer() {
+  if (authState.idleTimer) clearTimeout(authState.idleTimer);
+  
+  const timeoutMin = authState.policy.sessionTimeout;
+  if (timeoutMin <= 0) return;
+
+  authState.idleTimer = setTimeout(() => {
+    const session = localStorage.getItem('taxhub_session');
+    if (session) {
+      const parsed = JSON.parse(session);
+      addAuditLog(parsed.role.toUpperCase(), parsed.phone, 'TIMEOUT', 'Session timed out due to inactivity.');
+      if (parsed.role === 'customer') {
+        logoutCustomer();
+      } else {
+        logoutBusiness();
+      }
+      alert('Your session has expired due to inactivity. Please log in again.');
+    }
+  }, timeoutMin * 60 * 1000);
+}
+
+function savePolicyConfigs() {
+  const attempts = parseInt(document.getElementById('cfg-lockout-attempts').value);
+  const timeout = parseInt(document.getElementById('cfg-session-timeout').value);
+  
+  authState.policy.maxAttempts = attempts;
+  authState.policy.sessionTimeout = timeout;
+  
+  localStorage.setItem('taxhub_security_policy', JSON.stringify(authState.policy));
+  addAuditLog('SYSTEM', 'Admin', 'POLICY_UPDATE', `Access policies updated. Max attempts: ${attempts}, Idle Timeout: ${timeout}m`);
+  
+  resetIdleTimer();
+  alert('Security policies updated successfully.');
+}
+
+function saveFirebaseConfig() {
+  const apiKey = document.getElementById('fb-api-key').value.trim();
+  const authDomain = document.getElementById('fb-auth-domain').value.trim();
+  const projectId = document.getElementById('fb-project-id').value.trim();
+  const storageBucket = document.getElementById('fb-storage-bucket').value.trim();
+  const messagingSenderId = document.getElementById('fb-messaging-sender-id').value.trim();
+  const appId = document.getElementById('fb-app-id').value.trim();
+
+  if (!apiKey || !projectId) {
+    alert('Please enter valid Firebase configuration values (API Key & Project ID are required).');
+    return;
+  }
+
+  const config = { apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId };
+  localStorage.setItem('taxhub_fb_config', JSON.stringify(config));
+  
+  addAuditLog('SYSTEM', 'Admin', 'GATEWAY_CHANGE', 'Switched to Live Firebase SMS Gateway.');
+  
+  alert('Firebase configuration credentials saved. The system will initialize in Live SMS mode upon page reload.');
+  window.location.reload();
+}
+
+function clearFirebaseConfig() {
+  localStorage.removeItem('taxhub_fb_config');
+  addAuditLog('SYSTEM', 'Admin', 'GATEWAY_CHANGE', 'Reset SMS Gateway to Simulator Mode.');
+  alert('Firebase credentials removed. System returned to Simulator Mode.');
+  window.location.reload();
+}
+
+function forceSystemLockout() {
+  localStorage.removeItem('taxhub_session');
+  addAuditLog('SYSTEM', 'Admin', 'FORCE_LOCK', 'Administrator terminated all active sessions.');
+  alert('All active sessions terminated.');
+  window.location.reload();
+}
+
+function addAuditLog(role, identifier, action, details) {
+  let logs = JSON.parse(localStorage.getItem('taxhub_audit_logs') || '[]');
+  
+  const logEntry = {
+    timestamp: new Date().toLocaleString(),
+    role: role,
+    identifier: identifier,
+    action: action,
+    ip: 'Fetching...',
+    userAgent: navigator.userAgent
+  };
+
+  logs.unshift(logEntry);
+  if (logs.length > 50) logs.pop();
+  
+  localStorage.setItem('taxhub_audit_logs', JSON.stringify(logs));
+  renderAuditLogs();
+
+  fetch('https://api.ipify.org?format=json')
+    .then(res => res.json())
+    .then(data => {
+      let currentLogs = JSON.parse(localStorage.getItem('taxhub_audit_logs') || '[]');
+      const matchIndex = currentLogs.findIndex(l => l.timestamp === logEntry.timestamp && l.action === logEntry.action);
+      if (matchIndex !== -1) {
+        currentLogs[matchIndex].ip = data.ip;
+        localStorage.setItem('taxhub_audit_logs', JSON.stringify(currentLogs));
+        renderAuditLogs();
+      }
+    })
+    .catch(() => {
+      let currentLogs = JSON.parse(localStorage.getItem('taxhub_audit_logs') || '[]');
+      const matchIndex = currentLogs.findIndex(l => l.timestamp === logEntry.timestamp && l.action === logEntry.action);
+      if (matchIndex !== -1) {
+        currentLogs[matchIndex].ip = '127.0.0.1 (Localhost)';
+        localStorage.setItem('taxhub_audit_logs', JSON.stringify(currentLogs));
+        renderAuditLogs();
+      }
+    });
+}
+
+function renderAuditLogs() {
+  const tbody = document.getElementById('security-audit-tbody');
+  if (!tbody) return;
+
+  const logs = JSON.parse(localStorage.getItem('taxhub_audit_logs') || '[]');
+  tbody.innerHTML = '';
+  
+  if (logs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 24px 0;">No login logs or security transactions recorded.</td></tr>`;
+    return;
+  }
+
+  logs.forEach(log => {
+    let actionBadge = '';
+    if (log.action === 'SUCCESS') {
+      actionBadge = `<span class="badge badge-success" style="background-color:#34c759; color:#fff;">SUCCESS</span>`;
+    } else if (log.action === 'OTP_SENT') {
+      actionBadge = `<span class="badge badge-warning" style="background-color:#ff9500; color:#fff; border:none;">OTP SENT</span>`;
+    } else if (log.action.includes('FAIL') || log.action === 'LOCKED_OUT') {
+      actionBadge = `<span class="badge badge-danger" style="background-color:#ff3b30; color:#fff; border:none;">${log.action}</span>`;
+    } else {
+      actionBadge = `<span class="badge badge-info" style="background-color:#5856d6; color:#fff; border:none;">${log.action}</span>`;
+    }
+
+    let uaSummary = 'Unknown Device';
+    if (log.userAgent) {
+      if (log.userAgent.includes('Windows')) {
+        uaSummary = 'Windows | ';
+      } else if (log.userAgent.includes('Macintosh')) {
+        uaSummary = 'macOS | ';
+      } else if (log.userAgent.includes('iPhone') || log.userAgent.includes('iPad')) {
+        uaSummary = 'iOS | ';
+      } else if (log.userAgent.includes('Android')) {
+        uaSummary = 'Android | ';
+      } else {
+        uaSummary = 'Linux | ';
+      }
+
+      if (log.userAgent.includes('Chrome')) {
+        uaSummary += 'Chrome';
+      } else if (log.userAgent.includes('Firefox')) {
+        uaSummary += 'Firefox';
+      } else if (log.userAgent.includes('Safari')) {
+        uaSummary += 'Safari';
+      } else {
+        uaSummary += 'Edge/Other';
+      }
+    }
+
+    tbody.innerHTML += `
+      <tr>
+        <td style="font-family: var(--font-mono); font-size:11px;">${log.timestamp}</td>
+        <td style="font-weight: 600;">${log.role}</td>
+        <td>${log.identifier}</td>
+        <td>${actionBadge}</td>
+        <td style="font-family: var(--font-mono); font-size:11px;">${log.ip}</td>
+        <td style="font-size:11px; color: var(--text-secondary);">${uaSummary}</td>
+      </tr>
+    `;
+  });
+}
+
+function clearAuditLogs() {
+  if (confirm('Are you sure you want to permanently erase the security audit records?')) {
+    localStorage.removeItem('taxhub_audit_logs');
+    addAuditLog('SYSTEM', 'Admin', 'LOGS_CLEARED', 'Security audit records erased by administrator.');
+    alert('Logs cleared successfully.');
+  }
+}

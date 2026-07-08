@@ -12,8 +12,87 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Firebase App & Auth Compatibility SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 </head>
 <body>
+
+  <!-- AUTHENTICATION GATEWAY OVERLAY -->
+  <div id="auth-gateway">
+    <div class="auth-mesh-bg"></div>
+    <div class="auth-container">
+      <div class="auth-header">
+        <div class="auth-logo-icon"><i class="fa-solid fa-bolt"></i></div>
+        <div class="auth-logo-text">TaxHub Pro</div>
+        <div class="auth-subtitle">Secured Entry Portal</div>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-business" onclick="switchAuthRole('business')">Business Owner</button>
+        <button class="auth-tab" id="tab-customer" onclick="switchAuthRole('customer')">Customer Portal</button>
+      </div>
+
+      <!-- STEP 1: ENTER PHONE NUMBER -->
+      <div class="auth-form-step active" id="auth-step-phone">
+        <div class="auth-input-group">
+          <label class="auth-input-label" for="auth-phone-input">Register / Login Phone Number</label>
+          <div class="auth-phone-wrapper">
+            <span class="auth-phone-prefix">+91</span>
+            <input type="tel" class="auth-input-field" id="auth-phone-input" placeholder="Enter 10-digit mobile number" maxlength="10">
+          </div>
+        </div>
+
+        <!-- Google reCAPTCHA Anchor -->
+        <div class="auth-recaptcha-wrap">
+          <div id="recaptcha-container"></div>
+        </div>
+
+        <div class="auth-status-message error" id="phone-error-msg"></div>
+
+        <button class="auth-btn" id="btn-send-otp" onclick="handleSendOtp()">Request verification code</button>
+      </div>
+
+      <!-- STEP 2: ENTER OTP -->
+      <div class="auth-form-step" id="auth-step-otp">
+        <p style="font-size: 12px; color: #888888; text-align: center; margin-bottom: 20px;">
+          Enter the 6-digit code sent to <strong id="display-auth-phone"></strong>
+        </p>
+
+        <div class="auth-otp-container">
+          <input type="text" class="auth-otp-digit" id="auth-otp-1" maxlength="1" onkeyup="moveAuthOtp(this, 'auth-otp-2')" autocomplete="off" autofocus>
+          <input type="text" class="auth-otp-digit" id="auth-otp-2" maxlength="1" onkeyup="moveAuthOtp(this, 'auth-otp-3')" autocomplete="off">
+          <input type="text" class="auth-otp-digit" id="auth-otp-3" maxlength="1" onkeyup="moveAuthOtp(this, 'auth-otp-4')" autocomplete="off">
+          <input type="text" class="auth-otp-digit" id="auth-otp-4" maxlength="1" onkeyup="moveAuthOtp(this, 'auth-otp-5')" autocomplete="off">
+          <input type="text" class="auth-otp-digit" id="auth-otp-5" maxlength="1" onkeyup="moveAuthOtp(this, 'auth-otp-6')" autocomplete="off">
+          <input type="text" class="auth-otp-digit" id="auth-otp-6" maxlength="1" onkeyup="moveAuthOtp(this, null)" autocomplete="off">
+        </div>
+
+        <div class="auth-status-message error" id="otp-error-msg"></div>
+
+        <button class="auth-btn" id="btn-verify-otp" onclick="handleVerifyOtp()" disabled>Confirm Access</button>
+
+        <div class="auth-timer-container">
+          <span id="auth-timer-text">Resend code in <strong id="auth-cooldown">60</strong>s</span>
+          <a class="auth-resend-link disabled" id="auth-resend-btn" onclick="handleResendOtp()">Resend OTP</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SMS SIMULATOR OVERLAY TOAST -->
+  <div id="sms-simulator">
+    <div class="sms-sim-header">
+      <i class="fa-solid fa-message"></i> SMS Simulator Gateway
+    </div>
+    <div class="sms-sim-body">
+      TAXHUB OTP: Your verification code is <span class="sms-sim-otp" id="sms-sim-code">000000</span>. Valid for 5 minutes.
+    </div>
+    <div class="sms-sim-actions">
+      <button class="sms-sim-btn" onclick="copySimOtp()">Copy Code</button>
+      <button class="sms-sim-btn" onclick="autofillSimOtp()">Auto-Fill</button>
+    </div>
+  </div>
 
   <!-- SIDEBAR NAVIGATION -->
   <aside id="sidebar">
@@ -41,6 +120,9 @@
       </li>
       <li class="nav-item" data-view="products">
         <a href="#products"><i class="fa-solid fa-boxes-stacked"></i> Products Catalog</a>
+      </li>
+      <li class="nav-item" data-view="security">
+        <a href="#security"><i class="fa-solid fa-shield-halved"></i> Security & Audits</a>
       </li>
     </ul>
 
@@ -1049,6 +1131,121 @@
             </thead>
             <tbody id="cust-sales-tbody">
               <!-- Injected via app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. SECURITY & AUDIT SYSTEM -->
+    <section id="view-security" class="app-view">
+      <div class="view-title-container">
+        <div class="view-title-wrap">
+          <h1>Security & System Configuration</h1>
+          <p>Configure real-time SMS API keys, examine active login sessions, and track real-time security logs.</p>
+        </div>
+      </div>
+
+      <div class="security-grid">
+        <!-- Firebase SMS Gateway Integration API Settings -->
+        <div class="security-card">
+          <div class="security-card-title">
+            <span>Firebase SMS Integration</span>
+            <span class="sec-status-pill demo" id="sec-integration-status">Demo Simulator Mode</span>
+          </div>
+          
+          <p style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 24px;">
+            By default, TaxHub runs in <strong>Simulator Mode</strong>. To connect a live Google Firebase project and send real SMS OTPs to actual mobile devices, enter your Firebase Web App credentials below and save configurations.
+          </p>
+
+          <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="form-group">
+              <label for="fb-api-key">API Key</label>
+              <input type="password" id="fb-api-key" placeholder="AIzaSy...">
+            </div>
+            <div class="form-group">
+              <label for="fb-auth-domain">Auth Domain</label>
+              <input type="text" id="fb-auth-domain" placeholder="project-id.firebaseapp.com">
+            </div>
+          </div>
+
+          <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="form-group">
+              <label for="fb-project-id">Project ID</label>
+              <input type="text" id="fb-project-id" placeholder="project-id">
+            </div>
+            <div class="form-group">
+              <label for="fb-storage-bucket">Storage Bucket</label>
+              <input type="text" id="fb-storage-bucket" placeholder="project-id.appspot.com">
+            </div>
+          </div>
+
+          <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="form-group">
+              <label for="fb-messaging-sender-id">Messaging Sender ID</label>
+              <input type="text" id="fb-messaging-sender-id" placeholder="1234567890">
+            </div>
+            <div class="form-group">
+              <label for="fb-app-id">App ID</label>
+              <input type="text" id="fb-app-id" placeholder="1:123456:web:12345">
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 16px; margin-top: 30px;">
+            <button class="btn btn-primary" onclick="saveFirebaseConfig()"><i class="fa-solid fa-floppy-disk"></i> Save Credentials</button>
+            <button class="btn" onclick="clearFirebaseConfig()"><i class="fa-solid fa-trash-can"></i> Reset to Demo</button>
+          </div>
+        </div>
+
+        <!-- Security Operations Control Panel -->
+        <div class="security-card">
+          <div class="security-card-title">Security Policies</div>
+          
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label for="cfg-lockout-attempts">Max Failed OTP Attempts Before Lockout</label>
+            <select id="cfg-lockout-attempts" style="width:100%; border-bottom: 1px solid var(--border-subtle); padding: 8px 0;" onchange="savePolicyConfigs()">
+              <option value="3">3 Attempts (Highly Secure)</option>
+              <option value="5">5 Attempts</option>
+              <option value="10">10 Attempts</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label for="cfg-session-timeout">Session Auto-Logout Idle Time</label>
+            <select id="cfg-session-timeout" style="width:100%; border-bottom: 1px solid var(--border-subtle); padding: 8px 0;" onchange="savePolicyConfigs()">
+              <option value="15">15 Minutes</option>
+              <option value="30">30 Minutes</option>
+              <option value="60">60 Minutes</option>
+              <option value="0">Never (Persistent)</option>
+            </select>
+          </div>
+
+          <div style="margin-top: 40px; border-top: 1px solid var(--border-subtle); padding-top: 24px;">
+            <button class="btn btn-danger w-full" onclick="forceSystemLockout()"><i class="fa-solid fa-lock"></i> Terminate Active Sessions & Lockout</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-Time Session Audit logs -->
+      <div class="dashboard-panel" style="margin-top: 40px;">
+        <div class="panel-header">
+          <h2 class="panel-title">System Audit & Login Activity Logs</h2>
+          <button class="btn btn-sm" onclick="clearAuditLogs()"><i class="fa-solid fa-eraser"></i> Clear Log Records</button>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Identity Role</th>
+                <th>Verified Mobile</th>
+                <th>Access Status</th>
+                <th>Public IP Address</th>
+                <th>Browser & OS details</th>
+              </tr>
+            </thead>
+            <tbody id="security-audit-tbody">
+              <!-- Logs dynamically generated -->
             </tbody>
           </table>
         </div>
